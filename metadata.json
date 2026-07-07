@@ -1,0 +1,6 @@
+{
+  "name": "Nagrik Setu",
+  "description": "An AI-powered civic companion for Indian citizens to access public services, simplify complex schemes, translate policies, and report local public issues.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
