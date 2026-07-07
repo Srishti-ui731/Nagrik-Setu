@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { getComplaints, submitComplaint, addComplaintUpdate } from '../server';
+import {
+  getComplaints,
+  submitComplaint,
+  addComplaintUpdate,
+  validateComplaintInput,
+  getSystemInstruction
+} from '../server';
 
 // Helper to create mocked response object
 const createMockResponse = () => {
@@ -143,6 +149,55 @@ describe('Express Server Route Handlers', () => {
           error: 'Complaint not found'
         })
       );
+    });
+  });
+
+  describe('validateComplaintInput helper', () => {
+    it('returns error if email format is invalid', () => {
+      const result = validateComplaintInput({
+        category: 'Roads',
+        title: 'Road Damage',
+        description: 'Large potholes on main street',
+        location: 'Zone 1',
+        citizenName: 'Dev',
+        citizenEmail: 'bademail'
+      });
+      expect(result).toBe('Please specify a valid email address.');
+    });
+
+    it('returns error if phone format is invalid', () => {
+      const result = validateComplaintInput({
+        category: 'Roads',
+        title: 'Road Damage',
+        description: 'Large potholes on main street',
+        location: 'Zone 1',
+        citizenName: 'Dev',
+        citizenEmail: 'dev@gmail.com',
+        citizenPhone: '123'
+      });
+      expect(result).toBe('Please specify a valid phone number (10-15 digits).');
+    });
+
+    it('returns null if everything is correct', () => {
+      const result = validateComplaintInput({
+        category: 'Roads',
+        title: 'Road Damage',
+        description: 'Large potholes on main street',
+        location: 'Zone 1',
+        citizenName: 'Dev',
+        citizenEmail: 'dev@gmail.com',
+        citizenPhone: '9876543210',
+        pincode: '560002'
+      });
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getSystemInstruction helper', () => {
+    it('returns instructions containing the selected language name', () => {
+      const instructions = getSystemInstruction('Tamil');
+      expect(instructions).toContain('Tamil');
+      expect(instructions).toContain('Bapu / Bharat Sevak');
     });
   });
 });

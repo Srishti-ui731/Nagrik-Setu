@@ -332,6 +332,48 @@ export const getComplaints = (req: express.Request, res: express.Response) => {
 };
 
 /**
+ * Validate incoming grievance complaint inputs.
+ *
+ * @param {any} body - Express request body payload
+ * @returns {string | null} Error message string or null if inputs are valid
+ */
+export const validateComplaintInput = (body: any): string | null => {
+  const {
+    category,
+    title,
+    description,
+    location,
+    pincode,
+    citizenName,
+    citizenEmail,
+    citizenPhone
+  } = body;
+
+  if (!category || !title || !description || !location || !citizenName) {
+    return 'Missing required fields for registering complaint';
+  }
+  if (title.length < 5 || title.length > 100) {
+    return 'Title must be between 5 and 100 characters long.';
+  }
+  if (description.length < 10 || description.length > 1000) {
+    return 'Detailed description must be between 10 and 1000 characters long.';
+  }
+  const pincodeRegex = /^\d{6}$/;
+  if (pincode && !pincodeRegex.test(pincode)) {
+    return 'Pincode must be exactly 6 numeric digits.';
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (citizenEmail && !emailRegex.test(citizenEmail)) {
+    return 'Please specify a valid email address.';
+  }
+  const phoneRegex = /^\+?[\d\s\-]{10,15}$/;
+  if (citizenPhone && !phoneRegex.test(citizenPhone)) {
+    return 'Please specify a valid phone number (10-15 digits).';
+  }
+  return null;
+};
+
+/**
  * Express handler to register a new civic complaint.
  *
  * @param {express.Request} req - The Express request object
@@ -353,39 +395,9 @@ export const submitComplaint = (req: express.Request, res: express.Response): an
     department
   } = req.body;
 
-  // 1. Check for required parameters
-  if (!category || !title || !description || !location || !citizenName) {
-    return res.status(400).json({ error: 'Missing required fields for registering complaint' });
-  }
-
-  // 2. Title validation (length between 5 and 100 characters)
-  if (title.length < 5 || title.length > 100) {
-    return res.status(400).json({ error: 'Title must be between 5 and 100 characters long.' });
-  }
-
-  // 3. Description validation (length between 10 and 1000 characters)
-  if (description.length < 10 || description.length > 1000) {
-    return res
-      .status(400)
-      .json({ error: 'Detailed description must be between 10 and 1000 characters long.' });
-  }
-
-  // 4. Validate PIN code format (exactly 6 digits numeric)
-  const pincodeRegex = /^\d{6}$/;
-  if (pincode && !pincodeRegex.test(pincode)) {
-    return res.status(400).json({ error: 'Pincode must be exactly 6 numeric digits.' });
-  }
-
-  // 5. Validate citizen email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (citizenEmail && !emailRegex.test(citizenEmail)) {
-    return res.status(400).json({ error: 'Please specify a valid email address.' });
-  }
-
-  // 6. Validate citizen phone format
-  const phoneRegex = /^\+?[\d\s\-]{10,15}$/;
-  if (citizenPhone && !phoneRegex.test(citizenPhone)) {
-    return res.status(400).json({ error: 'Please specify a valid phone number (10-15 digits).' });
+  const validationError = validateComplaintInput(req.body);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
   }
 
   const newId = `COMP-2026-00${mockComplaints.length + 1}`;
@@ -505,6 +517,24 @@ export const addComplaintUpdate = (req: express.Request, res: express.Response):
 };
 
 /**
+ * Constructs the system instructions for the Bapu AI Civic Companion.
+ *
+ * @param {string} language - Target language for communication
+ * @returns {string} Fully formatted instruction string
+ */
+export const getSystemInstruction = (language: string): string => {
+  return `You are 'Bapu / Bharat Sevak', an expert, deeply compassionate, and highly supportive AI Civic Companion designed to assist the citizens of Bharat (India) in accessing government resources, navigating bureaucratic procedures, understanding their digital rights, and resolving public grievances.
+
+Key Guidelines:
+1. Simplify complex public welfare schemes (like PM-KISAN, Ayushman Bharat, PMJDY, pensions, ration cards), bureaucratic acts, and guidelines into clear, non-jargon, and comforting terms.
+2. Structure your replies beautifully with bullet points, numbered lists, and bold headings to guarantee accessibility.
+3. The citizen prefers communicating in ${language}. Ensure your primary response is in ${language}, but you can include English terms or names of schemes in parentheses where they are officially designated in English (e.g. "Ayushman Bharat Card (आयुष्मान भारत कार्ड)").
+4. Offer digital inclusion: write with utmost patience, address the citizen respectfully (e.g. "Namaste", "Dear Citizen", or use localized honorifics), and explain technical details (like OTP verification, Aadhaar linking, or downloading from Digilocker) in simple, step-by-step guides.
+5. If requested, provide direct templates of application letters, Grievance reports, or official petitions formatted correctly for Indian government blocks, Panchayat boards, or municipal corporations.
+6. Keep answers informative, factual, and strictly accurate. Base your recommendations on real, active government pathways. Do NOT invent schemes.`;
+};
+
+/**
  * Express handler to send a message to the Gemini AI chatbot backend.
  *
  * @param {express.Request} req - The Express request object
@@ -553,15 +583,7 @@ export const sendChatMessage = async (req: express.Request, res: express.Respons
       parts: [{ text: message }]
     });
 
-    const systemInstruction = `You are 'Bapu / Bharat Sevak', an expert, deeply compassionate, and highly supportive AI Civic Companion designed to assist the citizens of Bharat (India) in accessing government resources, navigating bureaucratic procedures, understanding their digital rights, and resolving public grievances.
-
-Key Guidelines:
-1. Simplify complex public welfare schemes (like PM-KISAN, Ayushman Bharat, PMJDY, pensions, ration cards), bureaucratic acts, and guidelines into clear, non-jargon, and comforting terms.
-2. Structure your replies beautifully with bullet points, numbered lists, and bold headings to guarantee accessibility.
-3. The citizen prefers communicating in ${language}. Ensure your primary response is in ${language}, but you can include English terms or names of schemes in parentheses where they are officially designated in English (e.g. "Ayushman Bharat Card (आयुष्मान भारत कार्ड)").
-4. Offer digital inclusion: write with utmost patience, address the citizen respectfully (e.g. "Namaste", "Dear Citizen", or use localized honorifics), and explain technical details (like OTP verification, Aadhaar linking, or downloading from Digilocker) in simple, step-by-step guides.
-5. If requested, provide direct templates of application letters, Grievance reports, or official petitions formatted correctly for Indian government blocks, Panchayat boards, or municipal corporations.
-6. Keep answers informative, factual, and strictly accurate. Base your recommendations on real, active government pathways. Do NOT invent schemes.`;
+    const systemInstruction = getSystemInstruction(language);
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
